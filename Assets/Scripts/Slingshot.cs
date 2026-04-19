@@ -2,14 +2,11 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.UI;
 
 public class Slingshot : MonoBehaviour
 {
     [Header("Slingshot Components")]
-    [SerializeField] private LineRenderer leftLineRenderer;
-    [SerializeField] private LineRenderer rightLineRenderer;
-    [SerializeField] private Transform leftOrigin;
-    [SerializeField] private Transform rightOrigin;
     [SerializeField] private Transform centerPoint;
 
     [Header("Slingshot Settings")]
@@ -23,16 +20,22 @@ public class Slingshot : MonoBehaviour
     [SerializeField] private int trajectoryDrawSteps = 50;
     [SerializeField] private float trajectoryTimeStep = 0.05f;
 
+    [Header("Visualization UI")]
+    [SerializeField] private Text statsText;
+
     private Vector3 slingshotPosition;
     private bool isGrabbing = false;
     
     void Start()
     {
         ResetSlingshot();
+        UpdateUI();
     }
 
     void Update()
     {
+        HandleVisualizationInputs();
+
         Vector3 mouseScreenPos = Mouse.current.position.ReadValue();
         Vector3 touchPosition = Camera.main.ScreenToWorldPoint(mouseScreenPos);
         touchPosition.z = centerPoint.position.z; // Keep depth identical to centerPoint for consistent 2D behavior
@@ -65,22 +68,11 @@ public class Slingshot : MonoBehaviour
     private void DrawSlingshot(Vector3 touchPosition)
     {
         slingshotPosition = centerPoint.position + Vector3.ClampMagnitude(touchPosition - centerPoint.position, maxDistance);
-        SetLines(slingshotPosition);
-    }
-
-    private void SetLines(Vector3 position)
-    {
-        // Make sure lines are actually active when set
-        leftLineRenderer.SetPosition(0, position);
-        leftLineRenderer.SetPosition(1, leftOrigin.position);
-        rightLineRenderer.SetPosition(0, position);
-        rightLineRenderer.SetPosition(1, rightOrigin.position);
     }
 
     private void ResetSlingshot()
     {
         slingshotPosition = centerPoint.position;
-        SetLines(centerPoint.position);
         
         if (trajectoryLineRenderer != null)
         {
@@ -110,6 +102,8 @@ public class Slingshot : MonoBehaviour
         // Position   r(t) = Integral( v(t) dt )
 
         Vector2 currentPosition = slingshotPosition;
+        
+        // center - slingshot gives us the direction of the initial velocity, and the magnitude is determined by the shootForceMultiplier
         Vector2 currentVelocity = (centerPoint.position - slingshotPosition) * shootForceMultiplier;
         Vector2 acceleration = Physics2D.gravity;
         
@@ -154,6 +148,54 @@ public class Slingshot : MonoBehaviour
         else
         {
             Debug.LogWarning("The projectile prefab requires a Rigidbody2D component to work with these Physics properties!");
+        }
+    }
+
+    private void HandleVisualizationInputs()
+    {
+        if (Keyboard.current == null) return;
+
+        bool changed = false;
+
+        // A/D controls time step (dt)
+        if (Keyboard.current.aKey.wasPressedThisFrame)
+        {
+            trajectoryTimeStep = Mathf.Clamp(trajectoryTimeStep - 0.01f, 0.01f, 0.5f);
+            changed = true;
+        }
+        else if (Keyboard.current.dKey.wasPressedThisFrame)
+        {
+            trajectoryTimeStep = Mathf.Clamp(trajectoryTimeStep + 0.01f, 0.01f, 0.5f);
+            changed = true;
+        }
+
+        // Q/E controls number of iterations (n)
+        if (Keyboard.current.qKey.wasPressedThisFrame)
+        {
+            trajectoryDrawSteps = Mathf.Clamp(trajectoryDrawSteps - 5, 5, 200);
+            changed = true;
+        }
+        else if (Keyboard.current.eKey.wasPressedThisFrame)
+        {
+            trajectoryDrawSteps = Mathf.Clamp(trajectoryDrawSteps + 5, 5, 200);
+            changed = true;
+        }
+
+        if (changed)
+        {
+            UpdateUI();
+        }
+    }
+
+    private void UpdateUI()
+    {
+        if (statsText != null)
+        {
+            statsText.text = $"[A/D] Time Step (dt): {trajectoryTimeStep:F2}\n" + 
+                             $"[Q/E] Iterations (n): {trajectoryDrawSteps}\n\n" +
+                             $"* The line is a manual Riemann Sum approximation.\n" + 
+                             $"* The bullet uses continuous physics engine integration.\n" +
+                             $"* Increase dt to see Estimation Error diverge!";
         }
     }
 }
