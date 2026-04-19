@@ -20,6 +20,10 @@ public class Slingshot : MonoBehaviour
     [SerializeField] private int trajectoryDrawSteps = 50;
     [SerializeField] private float trajectoryTimeStep = 0.05f;
 
+    private int defaultDrawSteps;
+    private float defaultTimeStep;
+    private float holdTimer = 0f;
+
     [Header("Visualization UI")]
     [SerializeField] private Text statsText;
 
@@ -28,8 +32,36 @@ public class Slingshot : MonoBehaviour
     
     void Start()
     {
+        defaultDrawSteps = trajectoryDrawSteps;
+        defaultTimeStep = trajectoryTimeStep;
         ResetSlingshot();
         UpdateUI();
+        SetupLineGradient();
+    }
+
+    private void SetupLineGradient()
+    {
+        if (trajectoryLineRenderer == null) return;
+        
+        Color startColor = Color.white;
+        Color endColor = Color.white;
+        ColorUtility.TryParseHtmlString("#FFC077", out startColor);
+        ColorUtility.TryParseHtmlString("#FF8606", out endColor);
+
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new GradientColorKey[] { 
+                new GradientColorKey(startColor, 0.0f), 
+                new GradientColorKey(endColor, 1.0f) 
+            },
+            new GradientAlphaKey[] { 
+                new GradientAlphaKey(1.0f, 0.0f), 
+                new GradientAlphaKey(1.0f, 0.15f), 
+                new GradientAlphaKey(0.0f, 0.20f), 
+                new GradientAlphaKey(0.0f, 1.0f) 
+            }
+        );
+        trajectoryLineRenderer.colorGradient = gradient;
     }
 
     void Update()
@@ -101,7 +133,7 @@ public class Slingshot : MonoBehaviour
         // Velocity   v(t) = Integral( a(t) dt )
         // Position   r(t) = Integral( v(t) dt )
 
-        Vector2 currentPosition = slingshotPosition;
+        Vector2 currentPosition = centerPoint.position;
         
         // center - slingshot gives us the direction of the initial velocity, and the magnitude is determined by the shootForceMultiplier
         Vector2 currentVelocity = (centerPoint.position - slingshotPosition) * shootForceMultiplier;
@@ -135,8 +167,8 @@ public class Slingshot : MonoBehaviour
             return;
         }
 
-        // Projectile instantiation at drawn-back positioning
-        GameObject projectile = Instantiate(projectilePrefab, slingshotPosition, Quaternion.identity);
+        // Projectile instantiation exactly at the center point character
+        GameObject projectile = Instantiate(projectilePrefab, centerPoint.position, Quaternion.identity);
         
         Rigidbody2D rb = projectile.GetComponent<Rigidbody2D>();
         if (rb != null)
@@ -154,31 +186,37 @@ public class Slingshot : MonoBehaviour
     private void HandleVisualizationInputs()
     {
         if (Keyboard.current == null) return;
-
         bool changed = false;
 
-        // A/D controls time step (dt)
-        if (Keyboard.current.aKey.wasPressedThisFrame)
+        if (Keyboard.current.rKey.wasPressedThisFrame)
         {
-            trajectoryTimeStep = Mathf.Clamp(trajectoryTimeStep - 0.01f, 0.01f, 0.5f);
-            changed = true;
-        }
-        else if (Keyboard.current.dKey.wasPressedThisFrame)
-        {
-            trajectoryTimeStep = Mathf.Clamp(trajectoryTimeStep + 0.01f, 0.01f, 0.5f);
+            trajectoryDrawSteps = defaultDrawSteps;
+            trajectoryTimeStep = defaultTimeStep;
             changed = true;
         }
 
-        // Q/E controls number of iterations (n)
-        if (Keyboard.current.qKey.wasPressedThisFrame)
+        holdTimer -= Time.deltaTime;
+        
+        bool anyKeyHeld = Keyboard.current.aKey.isPressed || Keyboard.current.dKey.isPressed ||
+                          Keyboard.current.qKey.isPressed || Keyboard.current.eKey.isPressed;
+                          
+        bool tapThisFrame = Keyboard.current.aKey.wasPressedThisFrame || Keyboard.current.dKey.wasPressedThisFrame ||
+                            Keyboard.current.qKey.wasPressedThisFrame || Keyboard.current.eKey.wasPressedThisFrame;
+
+        if (tapThisFrame || (anyKeyHeld && holdTimer <= 0f))
         {
-            trajectoryDrawSteps = Mathf.Clamp(trajectoryDrawSteps - 5, 5, 200);
+            if (Keyboard.current.aKey.isPressed)
+                trajectoryTimeStep = Mathf.Clamp(trajectoryTimeStep - 0.01f, 0.01f, 0.5f);
+            if (Keyboard.current.dKey.isPressed)
+                trajectoryTimeStep = Mathf.Clamp(trajectoryTimeStep + 0.01f, 0.01f, 0.5f);
+
+            if (Keyboard.current.qKey.isPressed)
+                trajectoryDrawSteps = Mathf.Clamp(trajectoryDrawSteps - 1, 5, 200);
+            if (Keyboard.current.eKey.isPressed)
+                trajectoryDrawSteps = Mathf.Clamp(trajectoryDrawSteps + 1, 5, 200);
+
             changed = true;
-        }
-        else if (Keyboard.current.eKey.wasPressedThisFrame)
-        {
-            trajectoryDrawSteps = Mathf.Clamp(trajectoryDrawSteps + 5, 5, 200);
-            changed = true;
+            holdTimer = tapThisFrame ? 0.3f : 0.03f; 
         }
 
         if (changed)
@@ -195,7 +233,8 @@ public class Slingshot : MonoBehaviour
                              $"[Q/E] Iterations (n): {trajectoryDrawSteps}\n\n" +
                              $"* The line is a manual Riemann Sum approximation.\n" + 
                              $"* The bullet uses continuous physics engine integration.\n" +
-                             $"* Increase dt to see Estimation Error diverge!";
+                             $"* Increase dt to see Estimation Error diverge!" +
+                             "\n[R] Reset";
         }
     }
 }
