@@ -31,9 +31,16 @@ public class Slingshot : MonoBehaviour
     [SerializeField] private Color activeHoverColor = new Color(0f, 1f, 1f, 0.4f);
     [SerializeField] private Color draggingColor = new Color(1f, 0.5f, 0f, 0.6f);
 
+    [Header("Character Animation")]
+    [SerializeField] private SpriteRenderer characterSpriteRenderer;
+    [SerializeField] private Sprite idleSprite;
+    [SerializeField] private Sprite hitSprite;
+    [SerializeField] private Sprite[] dragSprites = new Sprite[3]; // drag1, drag2, drag3
+
     private Vector3 slingshotPosition;
     private bool isGrabbing = false;
     private Coroutine fadeRoutine;
+    private Coroutine hitFlashRoutine;
     
     void Start()
     {
@@ -95,6 +102,7 @@ public class Slingshot : MonoBehaviour
         {
             DrawSlingshot(touchPosition);
             DrawTrajectory();
+            UpdateCharacterSprite();
         }
 
         // Shoot when mouse is released
@@ -105,7 +113,12 @@ public class Slingshot : MonoBehaviour
             ResetSlingshot(false); // Don't hide line yet
             if (fadeRoutine != null) StopCoroutine(fadeRoutine);
             fadeRoutine = StartCoroutine(KeepLineVisibleRoutine());
+            if (hitFlashRoutine != null) StopCoroutine(hitFlashRoutine);
+            hitFlashRoutine = StartCoroutine(HitFlashRoutine());
         }
+
+        if (!isGrabbing)
+            SetCharacterSprite(idleSprite);
     }
 
     private void UpdateHoverUX(Vector3 touchPosition)
@@ -126,6 +139,33 @@ public class Slingshot : MonoBehaviour
         
         // Smoothly shift to the new color state
         hoverZoneSprite.color = Color.Lerp(hoverZoneSprite.color, targetColor, Time.deltaTime * 15f);
+    }
+
+    private void SetCharacterSprite(Sprite sprite)
+    {
+        if (characterSpriteRenderer != null && sprite != null)
+            characterSpriteRenderer.sprite = sprite;
+    }
+
+    private void UpdateCharacterSprite()
+    {
+        if (dragSprites.Length < 3) return;
+
+        float pull = Vector3.Distance(slingshotPosition, centerPoint.position);
+        float t = pull / maxDistance; // 0..1
+
+        Sprite target = t < 0.05f ? dragSprites[0]
+                      : t < 0.3f ? dragSprites[1]
+                                  : dragSprites[2];
+        SetCharacterSprite(target);
+    }
+
+    private IEnumerator HitFlashRoutine()
+    {
+        SetCharacterSprite(hitSprite);
+        yield return null; // wait 1 frame
+        yield return null; // wait 2 frames
+        SetCharacterSprite(idleSprite);
     }
 
     private void DrawSlingshot(Vector3 touchPosition)

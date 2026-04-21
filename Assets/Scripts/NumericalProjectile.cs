@@ -10,14 +10,17 @@ public class NumericalProjectile : MonoBehaviour
     private Vector2 currentLogicalPosition;
     private Vector2 nextLogicalPosition;
     private Rigidbody2D rb;
+    [Header("Physics")]
+    [SerializeField] private float bounciness = 0.5f;
+    [SerializeField] private int maxBounces = 5;
+    private int currentBounces = 0;
 
     void Start()
     {
         acceleration = Physics2D.gravity;
         rb = GetComponent<Rigidbody2D>();
         if (rb != null){
-            rb.bodyType = RigidbodyType2D.Kinematic; 
-            rb.useFullKinematicContacts = true;
+            rb.gravityScale = 0;
         }
 
         currentLogicalPosition = transform.position;
@@ -59,5 +62,28 @@ public class NumericalProjectile : MonoBehaviour
         
         // USE MOVEPOSITION instead of transform.position
         rb.MovePosition(interpolatedPos);
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        currentBounces++;
+        if (currentBounces >= maxBounces)
+        {
+            Destroy(gameObject);
+            return; 
+        }
+
+        if (!collision.collider.isTrigger)
+        {
+            Vector2 normal = collision.contacts[0].normal;
+            
+            // Reflect the velocity vector
+            velocity = Vector2.Reflect(velocity, normal);
+            velocity *= bounciness;
+            // Reset the manual math positions so it continues from the bounce point
+            currentLogicalPosition = transform.position;
+            nextLogicalPosition = currentLogicalPosition + (velocity * dt);
+            timer = 0; 
+        }
     }
 }

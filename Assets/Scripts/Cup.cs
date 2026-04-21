@@ -30,6 +30,7 @@ public class Cup : MonoBehaviour
         
         Destroy(collision.gameObject);
     }
+
     private void UpdateScoreText()
     {
         if (scoreText != null)
@@ -37,6 +38,7 @@ public class Cup : MonoBehaviour
             scoreText.text = "Score: " + score;
         }
     }
+
     private void Respawn()
     {
         Vector3 newPos = transform.position;
