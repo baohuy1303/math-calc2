@@ -29,12 +29,13 @@ public class Slingshot : MonoBehaviour
 
     private Vector3 slingshotPosition;
     private bool isGrabbing = false;
+    private Coroutine fadeRoutine;
     
     void Start()
     {
         defaultDrawSteps = trajectoryDrawSteps;
         defaultTimeStep = trajectoryTimeStep;
-        ResetSlingshot();
+        ResetSlingshot(true);
         UpdateUI();
         SetupLineGradient();
     }
@@ -78,6 +79,8 @@ public class Slingshot : MonoBehaviour
             if (Vector3.Distance(touchPosition, centerPoint.position) <= grabDistance)
             {
                 isGrabbing = true;
+                if (fadeRoutine != null) StopCoroutine(fadeRoutine);
+                SetupLineGradient(); // Reset to normal colors
             }
         }
 
@@ -93,7 +96,9 @@ public class Slingshot : MonoBehaviour
         {
             isGrabbing = false;
             Shoot();
-            ResetSlingshot();
+            ResetSlingshot(false); // Don't hide line yet
+            if (fadeRoutine != null) StopCoroutine(fadeRoutine);
+            fadeRoutine = StartCoroutine(KeepLineVisibleRoutine());
         }
     }
 
@@ -102,13 +107,38 @@ public class Slingshot : MonoBehaviour
         slingshotPosition = centerPoint.position + Vector3.ClampMagnitude(touchPosition - centerPoint.position, maxDistance);
     }
 
-    private void ResetSlingshot()
+    private void ResetSlingshot(bool clearLine = true)
     {
         slingshotPosition = centerPoint.position;
         
-        if (trajectoryLineRenderer != null)
+        if (clearLine && trajectoryLineRenderer != null)
         {
             trajectoryLineRenderer.positionCount = 0; // Hide the trajectory
+        }
+    }
+
+    private IEnumerator KeepLineVisibleRoutine()
+    {
+        if (trajectoryLineRenderer != null)
+        {
+            Gradient gradient = new Gradient();
+            gradient.SetKeys(
+                new GradientColorKey[] { new GradientColorKey(Color.cyan, 0.0f), new GradientColorKey(Color.blue, 1.0f) },
+                new GradientAlphaKey[] { 
+                    new GradientAlphaKey(0.8f, 0.0f), 
+                    new GradientAlphaKey(0.8f, 0.15f), 
+                    new GradientAlphaKey(0.0f, 0.20f), 
+                    new GradientAlphaKey(0.0f, 1.0f) 
+                }
+            );
+            trajectoryLineRenderer.colorGradient = gradient;
+        }
+
+        yield return new WaitForSeconds(3f);
+
+        if (trajectoryLineRenderer != null)
+        {
+            trajectoryLineRenderer.positionCount = 0;
         }
     }
 
@@ -137,6 +167,7 @@ public class Slingshot : MonoBehaviour
         
         // center - slingshot gives us the direction of the initial velocity, and the magnitude is determined by the shootForceMultiplier
         Vector2 currentVelocity = (centerPoint.position - slingshotPosition) * shootForceMultiplier;
+
         Vector2 acceleration = Physics2D.gravity;
         
         // 'dt' is the differential time step (like 'dx' in an integral Riemann sum)
@@ -161,7 +192,7 @@ public class Slingshot : MonoBehaviour
 
     private void Shoot()
     {
-        if (projectilePrefab == null)
+        /* if (projectilePrefab == null)
         {
             Debug.LogWarning("No projectile prefab assigned! Please assign it in the Unity Inspector.");
             return;
@@ -180,7 +211,19 @@ public class Slingshot : MonoBehaviour
         else
         {
             Debug.LogWarning("The projectile prefab requires a Rigidbody2D component to work with these Physics properties!");
-        }
+        } */
+
+        if (projectilePrefab == null) return;
+        GameObject projectile = Instantiate(projectilePrefab, centerPoint.position, Quaternion.identity);
+        
+        // 1. Calculate the starting velocity
+        Vector2 initialVelocity = (centerPoint.position - slingshotPosition) * shootForceMultiplier;
+        // 2. Add our manual calculation script
+        NumericalProjectile manualMove = projectile.AddComponent<NumericalProjectile>();
+        
+        // 3. Pass the current 'dt' from your UI to the projectile
+        manualMove.velocity = initialVelocity;
+        manualMove.dt = trajectoryTimeStep;
     }
 
     private void HandleVisualizationInputs()
