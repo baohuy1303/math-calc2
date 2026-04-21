@@ -3632,6 +3632,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Cup
   scoreText: {fileID: 1302463609}
   scoreTriggerCollider: {fileID: 1882399998}
+  particleSystem: {fileID: 3163152785277897226, guid: c8c732c9d5a183a4bbd9aa72bfb999c8, type: 3}
 --- !u!61 &1882399998
 BoxCollider2D:
   m_ObjectHideFlags: 0
