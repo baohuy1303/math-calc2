@@ -26,6 +26,10 @@ public class Slingshot : MonoBehaviour
 
     [Header("Visualization UI")]
     [SerializeField] private Text statsText;
+    [SerializeField] private SpriteRenderer hoverZoneSprite;
+    [SerializeField] private Color idleHoverColor = new Color(1f, 1f, 1f, 0.1f);
+    [SerializeField] private Color activeHoverColor = new Color(0f, 1f, 1f, 0.4f);
+    [SerializeField] private Color draggingColor = new Color(1f, 0.5f, 0f, 0.6f);
 
     private Vector3 slingshotPosition;
     private bool isGrabbing = false;
@@ -73,6 +77,8 @@ public class Slingshot : MonoBehaviour
         Vector3 touchPosition = Camera.main.ScreenToWorldPoint(mouseScreenPos);
         touchPosition.z = centerPoint.position.z; // Keep depth identical to centerPoint for consistent 2D behavior
 
+        UpdateHoverUX(touchPosition);
+
         // Check if mouse was pressed this frame to begin grabbed state
         if (Mouse.current.leftButton.wasPressedThisFrame)
         {
@@ -100,6 +106,26 @@ public class Slingshot : MonoBehaviour
             if (fadeRoutine != null) StopCoroutine(fadeRoutine);
             fadeRoutine = StartCoroutine(KeepLineVisibleRoutine());
         }
+    }
+
+    private void UpdateHoverUX(Vector3 touchPosition)
+    {
+        if (hoverZoneSprite == null) return;
+        
+        Color targetColor = idleHoverColor;
+        
+        if (isGrabbing)
+        {
+            targetColor = draggingColor;
+        }
+        else if (Vector3.Distance(touchPosition, centerPoint.position) <= grabDistance)
+        {
+            // Mouse is waiting inside the circle
+            targetColor = activeHoverColor;
+        }
+        
+        // Smoothly shift to the new color state
+        hoverZoneSprite.color = Color.Lerp(hoverZoneSprite.color, targetColor, Time.deltaTime * 15f);
     }
 
     private void DrawSlingshot(Vector3 touchPosition)
@@ -274,8 +300,7 @@ public class Slingshot : MonoBehaviour
         {
             statsText.text = $"[A/D] Time Step (dt): {trajectoryTimeStep:F2}\n" + 
                              $"[Q/E] Iterations (n): {trajectoryDrawSteps}\n\n" +
-                             $"* The line is a manual Riemann Sum approximation.\n" + 
-                             $"* The bullet uses continuous physics engine integration.\n" +
+                             $"* The object and line is a manual Riemann Sum approximation.\n" +
                              $"* Increase dt to see Estimation Error diverge!" +
                              "\n[R] Reset";
         }

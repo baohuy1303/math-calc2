@@ -9,13 +9,16 @@ public class NumericalProjectile : MonoBehaviour
 
     private Vector2 currentLogicalPosition;
     private Vector2 nextLogicalPosition;
+    private Rigidbody2D rb;
 
     void Start()
     {
         acceleration = Physics2D.gravity;
-        // Ensure gravity doesn't affect it natively
-        Rigidbody2D rb = GetComponent<Rigidbody2D>();
-        if (rb != null) rb.simulated = false; 
+        rb = GetComponent<Rigidbody2D>();
+        if (rb != null){
+            rb.bodyType = RigidbodyType2D.Kinematic; 
+            rb.useFullKinematicContacts = true;
+        }
 
         currentLogicalPosition = transform.position;
         
@@ -52,6 +55,9 @@ public class NumericalProjectile : MonoBehaviour
 
         // Smoothly move (Lerp) the object along the straight line between the calculated points
         float interpolation = timer / dt;
-        transform.position = Vector3.Lerp((Vector3)currentLogicalPosition, (Vector3)nextLogicalPosition, interpolation);
+        Vector2 interpolatedPos = Vector2.Lerp((Vector3)currentLogicalPosition, (Vector3)nextLogicalPosition, interpolation);
+        
+        // USE MOVEPOSITION instead of transform.position
+        rb.MovePosition(interpolatedPos);
     }
 }
