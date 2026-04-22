@@ -52,15 +52,17 @@ public class NumericalProjectile : MonoBehaviour
             currentLogicalPosition = nextLogicalPosition;
             
             // Calculate the next step via Euler's Method just like Slingshot.cs
-            velocity += acceleration * dt;
+            // v = v_old + a*dt
+            velocity = velocity + acceleration * dt;
+            // r = r_old + v*dt
             nextLogicalPosition = currentLogicalPosition + velocity * dt;
         }
 
-        // Smoothly move (Lerp) the object along the straight line between the calculated points
+        // Smoothly move (Lerp) the object along the line between the calculated points
         float interpolation = timer / dt;
         Vector2 interpolatedPos = Vector2.Lerp((Vector3)currentLogicalPosition, (Vector3)nextLogicalPosition, interpolation);
         
-        // USE MOVEPOSITION instead of transform.position
+        // USE MOVEPOSITION instead of transform.position to ensure physics calculations are accurate
         rb.MovePosition(interpolatedPos);
     }
 
@@ -75,12 +77,17 @@ public class NumericalProjectile : MonoBehaviour
 
         if (!collision.collider.isTrigger)
         {
+            // normal is the vector perpendicular to the surface of the object it collided with
             Vector2 normal = collision.contacts[0].normal;
             
             // Reflect the velocity vector
+            // reflect_velocity = original_velocity - 2 * dot(original_velocity, normal) * normal
+            // That's what it's doing under Vector2.Reflect
             velocity = Vector2.Reflect(velocity, normal);
             velocity *= bounciness;
+
             // Reset the manual math positions so it continues from the bounce point
+            // So that it doesn't get stuck inside the object it collided with, but still moves
             currentLogicalPosition = transform.position;
             nextLogicalPosition = currentLogicalPosition + (velocity * dt);
             timer = 0; 

@@ -230,29 +230,27 @@ public class Slingshot : MonoBehaviour
         // Position   r(t) = Integral( v(t) dt )
 
         Vector2 currentPosition = centerPoint.position;
-        
-        // center - slingshot gives us the direction of the initial velocity, and the magnitude is determined by the shootForceMultiplier
         Vector2 currentVelocity = (centerPoint.position - slingshotPosition) * shootForceMultiplier;
+        // center - slingshot gives us the direction (vector) of the initial velocity, 
+        // and the magnitude is determined by the shootForceMultiplier
 
-        Vector2 acceleration = Physics2D.gravity;
+        Vector2 acceleration = Physics2D.gravity; // constant acceleration built into Unity (0, -9.81)
         
-        // 'dt' is the differential time step (like 'dx' in an integral Riemann sum)
+        // dt is the differential time step (like 'dx' in an integral Riemann sum)
         float dt = trajectoryTimeStep; 
 
-        for (int i = 0; i < trajectoryDrawSteps; i++)
+        for (int i = 0; i < trajectoryDrawSteps; i++) // This loop is like a Riemann Sum
         {
-            // Plot the currently known position
+            // Plot the currently known position into a line
             trajectoryLineRenderer.SetPosition(i, new Vector3(currentPosition.x, currentPosition.y, centerPoint.position.z));
             
             // -------------------------------------------------------------
-            // Step 1: Derivative of Velocity is Acceleration ( dv/dt = a )
-            // Therefore, integrating acceleration over dt yields the change in velocity.
-            currentVelocity += acceleration * dt; 
+            // v = v_old + a*dt
+            currentVelocity = currentVelocity + acceleration * dt; 
             
             // -------------------------------------------------------------
-            // Step 2: Derivative of Position is Velocity ( dr/dt = v )
-            // Therefore, integrating velocity over dt yields the change in position.
-            currentPosition += currentVelocity * dt;
+            // r = r_old + v*dt
+            currentPosition = currentPosition + currentVelocity * dt;
         }
     }
 
